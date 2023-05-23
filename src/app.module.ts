@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { join } from 'path';
 import { VideoEditorModule } from './components/video-editor/video-editor.module';
 import { StorageModule } from './components/storage/storage.module';
+import { MetadataModule } from './components/metadata/metadata.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { StorageModule } from './components/storage/storage.module';
     }),
     VideoEditorModule,
     StorageModule,
+    MetadataModule,
   ],
   controllers: [AppController],
   providers: [AppService],

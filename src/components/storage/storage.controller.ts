@@ -1,37 +1,50 @@
-import { Controller, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  ForbiddenException,
+  Put,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import * as AWS from 'aws-sdk';
-import { ConfigService } from '@nestjs/config';
+import { diskStorage } from 'multer';
+import { v4 as uuidv4 } from 'uuid';
+import { StorageService } from './storage.service';
+import { MetadataService } from '../metadata/metadata.service';
+import { validateIsSupportVideo } from './utils/validateIsSupportVideo';
 
 @Controller('storage')
 export class StorageController {
-  private readonly s3: AWS.S3;
-
-  constructor(private readonly configService: ConfigService) {
-    const accountId = this.configService.get('ACCOUNT_ID');
-    const accessKeyId = this.configService.get('ACCESS_KEY_ID');
-    const secretAccessKey = this.configService.get('SECRET_ACCESS_KEY');
-
-    this.s3 = new AWS.S3({
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      accessKeyId: accessKeyId,
-      secretAccessKey: secretAccessKey,
-      signatureVersion: 'v4',
-    });
-  }
+  constructor(
+    private readonly storageService: StorageService,
+    private readonly metadataService: MetadataService,
+  ) {}
 
   @Put()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: 'tmp',
+        filename: (req, file, cb) => {
+          if (validateIsSupportVideo(file)) {
+            cb(null, uuidv4());
+          } else {
+            cb(new ForbiddenException('Not support file'), null);
+          }
+        },
+      }),
+      limits: {
+        fileSize: 1024 * 1024 * 1024 * 2,
+      },
+    }),
+  )
   async putFile(@UploadedFile() file: Express.Multer.File) {
-    const result = await this.s3
-      .putObject({
-        Key: `${Date.now()}_${file.originalname}`,
-        Body: file.buffer,
-        Bucket: 'toshortvideo',
-      })
-      .promise();
+    const { filename } = file;
 
-    console.log(result);
-    return result;
+    // Put file to R2
+    await this.storageService.putFileFromTmpFolder(filename);
+
+    // TODO Metadata 추출해서 디비에 저장하는 코드 추가
+
+    return filename;
   }
 }
