@@ -40,9 +40,10 @@ export class StorageController {
   async putFile(@UploadedFile() file: Express.Multer.File) {
     const { filename } = file;
 
-    // Put file to R2
+    // Cloudflare R2 에 업로드
     await this.storageService.putFileFromTmpFolder(filename);
 
+    // TODO 디비에 저장 정보 업로드
     // TODO Metadata 추출해서 디비에 저장하는 코드 추가
 
     return filename;
