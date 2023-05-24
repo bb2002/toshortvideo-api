@@ -1,6 +1,5 @@
-import { Column, Entity, OneToOne } from 'typeorm';
+import { Column, Entity } from 'typeorm';
 import { BaseEntity } from '../../../common/entity/base.entity';
-import { FileEntity } from '../../storage/entities/file.entity';
 
 @Entity('tv_metadata')
 export class MetadataEntity extends BaseEntity {
@@ -11,7 +10,7 @@ export class MetadataEntity extends BaseEntity {
   duration: number;
 
   @Column({
-    type: 'varchar',
+    type: 'text',
     name: 'videoThumbnail',
   })
   videoThumbnail: string;

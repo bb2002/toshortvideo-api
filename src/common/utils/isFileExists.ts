@@ -1,10 +1,13 @@
 import * as fs from 'fs';
 
-export default function isFileExists(path: string): boolean {
-  try {
-    fs.accessSync(path);
-    return true;
-  } catch (err) {
-    return false;
-  }
+export async function isFileExists(path: string): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    fs.access(path, (err) => {
+      if (err) {
+        resolve(false);
+      } else {
+        resolve(true);
+      }
+    });
+  });
 }

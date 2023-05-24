@@ -1,9 +1,11 @@
 import {
   Controller,
   ForbiddenException,
+  Inject,
   Put,
   UploadedFile,
   UseInterceptors,
+  forwardRef,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -11,11 +13,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { StorageService } from './storage.service';
 import { MetadataService } from '../metadata/metadata.service';
 import { validateIsSupportVideo } from './utils/validateIsSupportVideo';
+import { PutFileReturn } from './types/PutFileReturn';
 
 @Controller('storage')
 export class StorageController {
   constructor(
+    @Inject(StorageService)
     private readonly storageService: StorageService,
+    @Inject(forwardRef(() => MetadataService))
     private readonly metadataService: MetadataService,
   ) {}
 
@@ -37,7 +42,9 @@ export class StorageController {
       },
     }),
   )
-  async putFile(@UploadedFile() file: Express.Multer.File) {
+  async putFile(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<PutFileReturn> {
     const { path, filename, size, mimetype, originalname } = file;
 
     // Metadata 생성
@@ -65,8 +72,15 @@ export class StorageController {
     // DownloadUrl 등록
     await this.storageService.updateFile({ uuid, downloadUrl: url, expiredAt });
 
-    // TODO 임시 파일 삭제하는 로직 추가
+    // 임시파일 제거
+    this.storageService.deleteTmpFile(filename);
 
-    return filename;
+    return {
+      uuid: filename,
+      videoUrl: url,
+      videoThumbnailUrl: metadataEntity.videoThumbnail,
+      duration: metadataEntity.duration,
+      expiredAt: expiredAt,
+    };
   }
 }

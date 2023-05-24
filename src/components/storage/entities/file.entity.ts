@@ -1,13 +1,15 @@
-import { Column, Entity, OneToOne } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, OneToOne } from 'typeorm';
 import { BaseEntity } from '../../../common/entity/base.entity';
 import { MetadataEntity } from '../../metadata/entities/metadata.entity';
 
 @Entity('tv_files')
 export class FileEntity extends BaseEntity {
   @Column({
-    unique: true,
     name: 'uuid',
     type: 'varchar',
+  })
+  @Index('uq_uuid', {
+    unique: true,
   })
   uuid: string;
 
@@ -31,7 +33,7 @@ export class FileEntity extends BaseEntity {
 
   @Column({
     name: 'download_url',
-    type: 'varchar',
+    type: 'text',
     nullable: true,
   })
   downloadUrl: string;
@@ -44,5 +46,8 @@ export class FileEntity extends BaseEntity {
   expiredAt: Date;
 
   @OneToOne(() => MetadataEntity)
+  @JoinColumn({
+    name: 'metadata_id',
+  })
   metadata: MetadataEntity;
 }

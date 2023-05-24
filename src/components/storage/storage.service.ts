@@ -1,9 +1,12 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as AWS from 'aws-sdk';
-import isFileExists from '../../common/utils/isFileExists';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FileEntity } from './entities/file.entity';
 import { Repository } from 'typeorm';
@@ -11,6 +14,7 @@ import { RegisterFileDto } from './dto/registerFile.dto';
 import { addSeconds } from 'date-fns';
 import { UpdateFileDto } from './dto/updateFileDto';
 import { isUndefined } from '@nestjs/common/utils/shared.utils';
+import { isFileExists } from '../../common/utils/isFileExists';
 
 interface UploadFileToStorageResult {
   key: string;
@@ -27,6 +31,7 @@ export class StorageService {
   private readonly s3: AWS.S3;
   private readonly BUCKET_NAME = 'toshortvideo';
   private readonly DOWNLOAD_URL_EXPIRES = 60 * 60 * 24; // 1Day
+  private readonly logger: Logger = new Logger(StorageService.name);
 
   constructor(
     private readonly configService: ConfigService,
@@ -46,8 +51,15 @@ export class StorageService {
   }
 
   async registerFile(registerFileDto: RegisterFileDto) {
-    const { uuid, originalName, mimeType, fileSize, downloadUrl, expiredAt } =
-      registerFileDto;
+    const {
+      uuid,
+      originalName,
+      mimeType,
+      fileSize,
+      downloadUrl,
+      expiredAt,
+      metadata,
+    } = registerFileDto;
 
     return this.fileRepository.save({
       uuid,
@@ -56,6 +68,7 @@ export class StorageService {
       fileSize,
       ...(!isUndefined(downloadUrl) ? { downloadUrl } : {}),
       ...(!isUndefined(expiredAt) ? { expiredAt } : {}),
+      metadata,
     });
   }
 
@@ -77,7 +90,7 @@ export class StorageService {
     filename: string,
   ): Promise<UploadFileToStorageResult> {
     const tmpFile = path.join('tmp', filename);
-    if (!isFileExists(tmpFile)) {
+    if (!(await isFileExists(tmpFile))) {
       throw new InternalServerErrorException('No temporary files were found.');
     }
 
@@ -108,5 +121,13 @@ export class StorageService {
       url: signedUrl,
       expiredAt: addSeconds(new Date(), this.DOWNLOAD_URL_EXPIRES),
     };
+  }
+
+  deleteTmpFile(filename: string) {
+    fs.unlink(path.join('tmp', filename), (err) => {
+      if (err) {
+        this.logger.error(err);
+      }
+    });
   }
 }
