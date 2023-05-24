@@ -38,13 +38,34 @@ export class StorageController {
     }),
   )
   async putFile(@UploadedFile() file: Express.Multer.File) {
-    const { filename } = file;
+    const { path, filename, size, mimetype, originalname } = file;
+
+    // Metadata 생성
+    const metadataEntity = await this.metadataService.createMetadataFromFile(
+      path,
+    );
+
+    // File 생성
+    const { uuid } = await this.storageService.registerFile({
+      fileSize: size,
+      uuid: filename,
+      mimeType: mimetype,
+      originalName: originalname,
+      metadata: metadataEntity,
+    });
 
     // Cloudflare R2 에 업로드
-    await this.storageService.putFileFromTmpFolder(filename);
+    const { key } = await this.storageService.uploadFileToStorage(filename);
 
-    // TODO 디비에 저장 정보 업로드
-    // TODO Metadata 추출해서 디비에 저장하는 코드 추가
+    // Download URL 생성
+    const { url, expiredAt } = await this.storageService.generateDownloadUrl(
+      key,
+    );
+
+    // DownloadUrl 등록
+    await this.storageService.updateFile({ uuid, downloadUrl: url, expiredAt });
+
+    // TODO 임시 파일 삭제하는 로직 추가
 
     return filename;
   }
