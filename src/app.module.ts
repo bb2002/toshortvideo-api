@@ -1,12 +1,11 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { join } from 'path';
-import { VideoEditorModule } from './components/video-editor/video-editor.module';
 import { StorageModule } from './components/storage/storage.module';
-import { MetadataModule } from './components/metadata/metadata.module';
+import { EditorModule } from './components/editor/editor.module';
 
 @Module({
   imports: [
@@ -29,9 +28,8 @@ import { MetadataModule } from './components/metadata/metadata.module';
         synchronize: true,
       }),
     }),
-    VideoEditorModule,
     StorageModule,
-    MetadataModule,
+    EditorModule,
   ],
   controllers: [AppController],
   providers: [AppService],
