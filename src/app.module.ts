@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { join } from 'path';
 import { StorageModule } from './components/storage/storage.module';
 import { EditorModule } from './components/editor/editor.module';
+import { ConverterModule } from './components/converter/converter.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { EditorModule } from './components/editor/editor.module';
     }),
     StorageModule,
     EditorModule,
+    ConverterModule,
   ],
   controllers: [AppController],
   providers: [AppService],

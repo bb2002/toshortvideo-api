@@ -1,6 +1,8 @@
 import {
   BadRequestException,
+  Body,
   Controller,
+  Post,
   Put,
   UploadedFile,
   UseInterceptors,
@@ -8,6 +10,7 @@ import {
 import { EditorService } from './services/editor.service';
 import storage from '../../common/multer/videoUploaderDiskStorage';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { EnqueueVideoDto } from './dto/enqueueVideo.dto';
 
 const MAX_VIDEO_UPLOAD_SIZE = 2; // GB
 
@@ -30,5 +33,10 @@ export class EditorController {
     }
 
     return this.editorService.processUploadedVideo(file);
+  }
+
+  @Post('/enqueue')
+  async enqueueVideo(@Body() enqueueVideoDto: EnqueueVideoDto[]) {
+    console.log(enqueueVideoDto);
   }
 }

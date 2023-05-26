@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { StorageService } from '../../storage/storage.service';
 import R2Folder from '../../storage/enums/R2Folder';
 import { InjectRepository } from '@nestjs/typeorm';
-import { UploadVideoEntity } from '../entities/upload-video.entity';
+import { UploadVideoEntity } from '../entities/uploadVideo.entity';
 import { Repository } from 'typeorm';
 
 @Injectable()

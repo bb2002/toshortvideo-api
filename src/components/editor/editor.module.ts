@@ -3,7 +3,7 @@ import { EditorController } from './editor.controller';
 import { EditorService } from './services/editor.service';
 import { FfmpegService } from './services/ffmpeg.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UploadVideoEntity } from './entities/upload-video.entity';
+import { UploadVideoEntity } from './entities/uploadVideo.entity';
 import { StorageModule } from '../storage/storage.module';
 
 @Module({
