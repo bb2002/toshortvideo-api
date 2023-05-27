@@ -11,6 +11,7 @@ import { Type } from 'class-transformer';
 import FontFamily from '../enums/FontFamily';
 import { FontWeight } from '../enums/FontWeight';
 import VideoBlankFill from '../enums/VideoBlankFill';
+import ShortPlatform from '../enums/ShortPlatform';
 
 export class TextRecipeDto {
   @IsString()
@@ -50,9 +51,12 @@ export class EncodingRecipeDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => TextRecipeDto)
-  text2: TextRecipeDto;
+  text2?: TextRecipeDto;
 
   @ValidateNested()
   @Type(() => VideoRecipeDto)
   video: VideoRecipeDto;
+
+  @IsEnum(ShortPlatform)
+  platform: ShortPlatform;
 }

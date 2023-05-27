@@ -7,6 +7,7 @@ import { join } from 'path';
 import { StorageModule } from './components/storage/storage.module';
 import { EditorModule } from './components/editor/editor.module';
 import { ConverterModule } from './components/converter/converter.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ConverterModule } from './components/converter/converter.module';
         logging: true,
       }),
     }),
+    ScheduleModule.forRoot(),
     StorageModule,
     EditorModule,
     ConverterModule,

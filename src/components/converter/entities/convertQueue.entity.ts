@@ -1,6 +1,7 @@
 import {
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   Index,
   OneToMany,
@@ -36,4 +37,9 @@ export class ConvertQueueEntity {
     name: 'created_at',
   })
   createdAt: Date;
+
+  @DeleteDateColumn({
+    name: 'dequeued_at',
+  })
+  dequeuedAt: Date;
 }

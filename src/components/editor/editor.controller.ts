@@ -41,14 +41,10 @@ export class EditorController {
   async enqueueVideos(
     @Body(new ParseArrayPipe({ items: EnqueueVideoDto }))
     enqueueVideoDto: EnqueueVideoDto[],
-    @Ip() ipAddr,
+    @Ip() ipAddr: string,
   ) {
-    if (!ipAddr) {
-      throw new BadRequestException('Invalid client request.');
-    }
-
     const { uuid } = await this.editorService.enqueueVideos(
-      ipAddr,
+      ipAddr ?? '0.0.0.0',
       enqueueVideoDto,
     );
 

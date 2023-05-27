@@ -1,11 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { EnqueueVideoDto } from '../editor/dto/enqueueVideo.dto';
-import { UploadVideoEntity } from '../editor/entities/uploadVideo.entity';
+import { EnqueueVideoDto } from '../../editor/dto/enqueueVideo.dto';
+import { UploadVideoEntity } from '../../editor/entities/uploadVideo.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ConvertOrderEntity } from './entities/convertOrder.entity';
+import { ConvertOrderEntity } from '../entities/convertOrder.entity';
 import { Repository } from 'typeorm';
-import { ConvertQueueEntity } from './entities/convertQueue.entity';
-import ProgressStatus from './enums/ProgressStatus';
+import { ConvertQueueEntity } from '../entities/convertQueue.entity';
+import ProgressStatus from '../enums/ProgressStatus';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -49,5 +49,27 @@ export class ConverterService {
       uuid,
       orders,
     });
+  }
+
+  async dequeue(): Promise<ConvertQueueEntity | null> {
+    const item = await this.convertQueueRepository.findOne({
+      where: {
+        dequeuedAt: null,
+      },
+      order: {
+        id: 'ASC',
+      },
+      relations: ['orders'],
+    });
+
+    if (!item) {
+      return null;
+    }
+
+    // 큐에서 아이템을 뽑았다면, dequeue 처리
+    item.dequeuedAt = new Date();
+    await this.convertQueueRepository.save(item);
+
+    return item;
   }
 }

@@ -36,6 +36,13 @@ export class ConvertOrderEntity {
   })
   percent: number;
 
+  @Column({
+    name: 'message',
+    type: 'text',
+    nullable: true,
+  })
+  message: string;
+
   @OneToOne(() => UploadVideoEntity)
   @JoinColumn({ name: 'upload_video_id' })
   originalVideo: UploadVideoEntity;

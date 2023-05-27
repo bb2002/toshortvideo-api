@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { UploadVideoEntity } from '../entities/uploadVideo.entity';
 import { In, MoreThan, Repository } from 'typeorm';
 import { EnqueueVideoDto } from '../dto/enqueueVideo.dto';
-import { ConverterService } from 'src/components/converter/converter.service';
+import { ConverterService } from '../../../components/converter/services/converter.service';
 
 @Injectable()
 export class EditorService {
