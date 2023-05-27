@@ -27,6 +27,7 @@ import { ConverterModule } from './components/converter/converter.module';
           join(__dirname, '/components/**/entities/*.entity{.ts,.js}'),
         ],
         synchronize: true,
+        logging: true,
       }),
     }),
     StorageModule,

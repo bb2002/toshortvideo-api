@@ -5,11 +5,16 @@ import { FfmpegService } from './services/ffmpeg.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UploadVideoEntity } from './entities/uploadVideo.entity';
 import { StorageModule } from '../storage/storage.module';
+import { ConverterModule } from '../converter/converter.module';
 
 @Module({
   controllers: [EditorController],
   providers: [EditorService, FfmpegService],
   exports: [EditorService, FfmpegService],
-  imports: [StorageModule, TypeOrmModule.forFeature([UploadVideoEntity])],
+  imports: [
+    ConverterModule,
+    StorageModule,
+    TypeOrmModule.forFeature([UploadVideoEntity]),
+  ],
 })
 export class EditorModule {}

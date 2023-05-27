@@ -1,12 +1,12 @@
 import { IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { VideoRecipeDto } from '../../converter/dto/videoRecipe.dto';
+import { EncodingRecipeDto } from '../../converter/dto/encodingRecipe.dto';
 
 export class EnqueueVideoDto {
   @IsString()
   uuid: string;
 
   @ValidateNested()
-  @Type(() => VideoRecipeDto)
-  recipe: VideoRecipeDto;
+  @Type(() => EncodingRecipeDto)
+  recipe: EncodingRecipeDto;
 }

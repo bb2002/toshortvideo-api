@@ -1,6 +1,7 @@
 import {
   IsEnum,
   IsHexColor,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -9,10 +10,11 @@ import {
 import { Type } from 'class-transformer';
 import FontFamily from '../enums/FontFamily';
 import { FontWeight } from '../enums/FontWeight';
+import VideoBlankFill from '../enums/VideoBlankFill';
 
 export class TextRecipeDto {
   @IsString()
-  @MaxLength(10)
+  @MaxLength(12)
   text: string;
 
   @IsHexColor()
@@ -26,6 +28,20 @@ export class TextRecipeDto {
 }
 
 export class VideoRecipeDto {
+  @IsNumber()
+  startAt: number;
+
+  @IsNumber()
+  endAt: number;
+
+  @IsEnum(VideoBlankFill)
+  blankFill: VideoBlankFill;
+
+  @IsNumber()
+  size: number;
+}
+
+export class EncodingRecipeDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => TextRecipeDto)
@@ -35,4 +51,8 @@ export class VideoRecipeDto {
   @ValidateNested()
   @Type(() => TextRecipeDto)
   text2: TextRecipeDto;
+
+  @ValidateNested()
+  @Type(() => VideoRecipeDto)
+  video: VideoRecipeDto;
 }

@@ -2,6 +2,8 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Ip,
+  ParseArrayPipe,
   Post,
   Put,
   UploadedFile,
@@ -36,7 +38,22 @@ export class EditorController {
   }
 
   @Post('/enqueue')
-  async enqueueVideo(@Body() enqueueVideoDto: EnqueueVideoDto[]) {
-    console.log(enqueueVideoDto);
+  async enqueueVideos(
+    @Body(new ParseArrayPipe({ items: EnqueueVideoDto }))
+    enqueueVideoDto: EnqueueVideoDto[],
+    @Ip() ipAddr,
+  ) {
+    if (!ipAddr) {
+      throw new BadRequestException('Invalid client request.');
+    }
+
+    const { uuid } = await this.editorService.enqueueVideos(
+      ipAddr,
+      enqueueVideoDto,
+    );
+
+    return {
+      uuid,
+    };
   }
 }
