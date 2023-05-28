@@ -41,6 +41,15 @@ export class ConverterService {
     });
   }
 
+  async getOrderById(id: number): Promise<ConvertOrderEntity | null> {
+    return this.convertOrderRepository.findOne({
+      where: {
+        id,
+      },
+      relations: ['originalVideo'],
+    });
+  }
+
   async enqueue(ipAddress: string, orders: ConvertOrderEntity[]) {
     const uuid = uuidv4();
 

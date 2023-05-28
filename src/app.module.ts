@@ -28,7 +28,7 @@ import { ScheduleModule } from '@nestjs/schedule';
           join(__dirname, '/components/**/entities/*.entity{.ts,.js}'),
         ],
         synchronize: true,
-        logging: true,
+        // logging: true,
       }),
     }),
     ScheduleModule.forRoot(),
