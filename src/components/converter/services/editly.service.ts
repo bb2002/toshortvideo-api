@@ -3,7 +3,7 @@ import { Interval } from '@nestjs/schedule';
 import { ConverterService } from './converter.service';
 import { ConvertOrderEntity } from '../entities/convertOrder.entity';
 import { v4 as uuidv4 } from 'uuid';
-import { EnqueueVideoDto } from 'src/components/editor/dto/enqueueVideo.dto';
+import { CreateOrderItemDto } from 'src/components/editor/dto/createOrderItem.dto';
 import { plainToInstance } from 'class-transformer';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -46,7 +46,7 @@ export class EditlyService {
   private async runEditly(order: ConvertOrderEntity) {
     const { originalVideo } = order;
     const { recipe } = plainToInstance(
-      EnqueueVideoDto,
+      CreateOrderItemDto,
       JSON.parse(order.recipe),
     );
     const outputFileName = uuidv4();

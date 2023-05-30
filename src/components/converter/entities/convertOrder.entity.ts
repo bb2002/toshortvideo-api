@@ -2,14 +2,11 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  JoinColumn,
-  ManyToOne,
-  OneToOne,
+  Index,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { ConvertQueueEntity } from './convertQueue.entity';
-import { UploadVideoEntity } from 'src/components/editor/entities/uploadVideo.entity';
-import ProgressStatus from '../enums/ProgressStatus';
+import { ConvertOrderItemEntity } from './convertOrderItem.entity';
 
 @Entity('tsv_convert_order')
 export class ConvertOrderEntity {
@@ -17,38 +14,31 @@ export class ConvertOrderEntity {
   id: number;
 
   @Column({
-    name: 'recipe',
-    type: 'text',
+    name: 'uuid',
+    type: 'varchar',
   })
-  recipe: string;
+  @Index('uq_uuid', {
+    unique: true,
+  })
+  uuid: string;
 
   @Column({
-    name: 'progress_status',
-    type: 'enum',
-    enum: ProgressStatus,
-  })
-  status: ProgressStatus;
-
-  @Column({
-    name: 'progress_percent',
-    type: 'int',
+    name: 'ip_address',
+    type: 'varchar',
     nullable: true,
   })
-  percent: number;
+  ipAddress: string | null;
 
   @Column({
-    name: 'message',
-    type: 'text',
+    name: 'dequeued_at',
+    type: 'datetime',
     nullable: true,
+    default: null
   })
-  message: string;
+  dequeuedAt: Date | null;
 
-  @OneToOne(() => UploadVideoEntity)
-  @JoinColumn({ name: 'upload_video_id' })
-  originalVideo: UploadVideoEntity;
-
-  @ManyToOne(() => ConvertQueueEntity, (convertQueue) => convertQueue.orders)
-  queue: ConvertQueueEntity;
+  @OneToMany(() => ConvertOrderItemEntity, (order) => order.order)
+  items: ConvertOrderItemEntity[];
 
   @CreateDateColumn({
     name: 'created_at',

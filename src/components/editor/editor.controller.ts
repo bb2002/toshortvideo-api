@@ -12,7 +12,9 @@ import {
 import { EditorService } from './services/editor.service';
 import storage from '../../common/multer/videoUploaderDiskStorage';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { EnqueueVideoDto } from './dto/enqueueVideo.dto';
+import { CreateOrderItemDto } from './dto/createOrderItem.dto';
+import transformAndValidate from '../../common/utils/transformAndValidate';
+import { CreateOrderDto } from './dto/createOrder.dto';
 
 const MAX_VIDEO_UPLOAD_SIZE = 2; // GB
 
@@ -38,18 +40,16 @@ export class EditorController {
   }
 
   @Post('/enqueue')
-  async enqueueVideos(
-    @Body(new ParseArrayPipe({ items: EnqueueVideoDto }))
-    enqueueVideoDto: EnqueueVideoDto[],
+  async enqueueOrder(
+    @Body(new ParseArrayPipe({ items: CreateOrderItemDto }))
+    orderItems: CreateOrderItemDto[],
     @Ip() ipAddr: string,
   ) {
-    const { uuid } = await this.editorService.enqueueVideos(
-      ipAddr ?? '0.0.0.0',
-      enqueueVideoDto,
-    );
+    const createOrderDto = await transformAndValidate(CreateOrderDto, {
+      ipAddress: ipAddr,
+      orderItems,
+    });
 
-    return {
-      uuid,
-    };
+    return this.editorService.enqueueOrder(createOrderDto);
   }
 }

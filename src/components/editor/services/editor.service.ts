@@ -6,8 +6,10 @@ import R2Folder from '../../storage/enums/R2Folder';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UploadVideoEntity } from '../entities/uploadVideo.entity';
 import { In, MoreThan, Repository } from 'typeorm';
-import { EnqueueVideoDto } from '../dto/enqueueVideo.dto';
+import { CreateOrderItemDto } from '../dto/createOrderItem.dto';
 import { ConverterService } from '../../../components/converter/services/converter.service';
+import { CreateOrderDto } from '../dto/createOrder.dto';
+import EnqueueOrderResult from '../types/EnqueueOrderResult';
 
 @Injectable()
 export class EditorService {
@@ -19,32 +21,30 @@ export class EditorService {
     private readonly uploadVideoRepository: Repository<UploadVideoEntity>,
   ) {}
 
-  async enqueueVideos(ipAddress: string, enqueueVideoDto: EnqueueVideoDto[]) {
-    if (enqueueVideoDto.length > 5) {
-      throw new BadRequestException('Maximum 5 videos can be enqueued.');
+  async enqueueOrder(
+    createOrderDto: CreateOrderDto,
+  ): Promise<EnqueueOrderResult> {
+    const { orderItems } = createOrderDto;
+
+    // 입력된 모든 Video 가 유효한지 확인
+    for (const orderItem of orderItems) {
+      const { uuid } = orderItem;
+      if (await this.isVideoExpired(uuid)) {
+        throw new BadRequestException('Invalid video uuid found.');
+      }
     }
 
-    const now = new Date();
-    const uploadedVideos = await this.uploadVideoRepository.find({
-      where: {
-        uuid: In(enqueueVideoDto.map((video) => video.uuid)),
-        expiredAt: MoreThan(now),
-      },
-    });
-
-    if (enqueueVideoDto.length !== uploadedVideos.length) {
-      throw new BadRequestException('Invalid video uuid found.');
-    }
-
-    const convertOrders = await Promise.all(
-      enqueueVideoDto.map((dto) => {
-        const video = uploadedVideos.find((value) => value.uuid === dto.uuid);
-
-        return this.converterService.createOrder(dto, video);
-      }),
+    // 주문 및 주문 아이템 생성
+    const newOrder = await this.converterService.createOrder(createOrderDto);
+    const newOrderItems = await this.converterService.createOrderItems(
+      newOrder,
+      orderItems,
     );
 
-    return this.converterService.enqueue(ipAddress, convertOrders);
+    return {
+      orderUUID: newOrder.uuid,
+      orderItemIDs: newOrderItems.map((value) => value.id),
+    };
   }
 
   async processUploadedVideo(
@@ -84,5 +84,17 @@ export class EditorService {
       thumbnailUrl,
       expiredAt: videoDownloadUrlResult.expiredAt,
     });
+  }
+
+  private async isVideoExpired(uuid: string) {
+    const now = new Date();
+    const videoNum = await this.uploadVideoRepository.count({
+      where: {
+        uuid,
+        expiredAt: MoreThan(now),
+      },
+    });
+
+    return videoNum === 0;
   }
 }
