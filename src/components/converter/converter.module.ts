@@ -1,13 +1,17 @@
 import { Module } from '@nestjs/common';
 import { ConverterService } from './services/converter.service';
-import { ConvertQueueEntity } from './entities/convertQueue.entity';
 import { ConvertOrderEntity } from './entities/convertOrder.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EditlyService } from './services/editly.service';
+import { ConvertOrderItemEntity } from './entities/convertOrderItem.entity';
+import { EditorModule } from '../editor/editor.module';
 
 @Module({
   providers: [ConverterService, EditlyService],
   exports: [ConverterService],
-  imports: [TypeOrmModule.forFeature([ConvertOrderEntity, ConvertQueueEntity])],
+  imports: [
+    EditorModule,
+    TypeOrmModule.forFeature([ConvertOrderEntity, ConvertOrderItemEntity]),
+  ],
 })
 export class ConverterModule {}

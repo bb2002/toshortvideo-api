@@ -86,6 +86,15 @@ export class EditorService {
     });
   }
 
+  async getUploadVideo(uuid: string): Promise<UploadVideoEntity> {
+    return this.uploadVideoRepository.findOne({
+      where: {
+        uuid,
+        expiredAt: MoreThan(new Date()),
+      },
+    });
+  }
+
   private async isVideoExpired(uuid: string) {
     const now = new Date();
     const videoNum = await this.uploadVideoRepository.count({

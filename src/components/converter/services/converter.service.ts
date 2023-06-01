@@ -1,6 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateOrderItemDto } from '../../editor/dto/createOrderItem.dto';
-import { UploadVideoEntity } from '../../editor/entities/uploadVideo.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConvertOrderEntity } from '../entities/convertOrder.entity';
 import { Repository } from 'typeorm';
@@ -43,45 +42,23 @@ export class ConverterService {
     });
   }
 
-  //
-  // async getOrderById(id: number): Promise<ConvertOrderEntity | null> {
-  //   return this.convertOrderRepository.findOne({
-  //     where: {
-  //       id,
-  //     },
-  //     relations: ['originalVideo'],
-  //   });
-  // }
-  //
-  // async enqueue(ipAddress: string, orders: ConvertOrderEntity[]) {
-  //   const uuid = uuidv4();
-  //
-  //   return this.convertQueueRepository.save({
-  //     ipAddress,
-  //     uuid,
-  //     orders,
-  //   });
-  // }
-  //
-  // async dequeue(): Promise<ConvertQueueEntity | null> {
-  //   const item = await this.convertQueueRepository.findOne({
-  //     where: {
-  //       dequeuedAt: null,
-  //     },
-  //     order: {
-  //       id: 'ASC',
-  //     },
-  //     relations: ['orders'],
-  //   });
-  //
-  //   if (!item) {
-  //     return null;
-  //   }
-  //
-  //   // 큐에서 아이템을 뽑았다면, dequeue 처리
-  //   item.dequeuedAt = new Date();
-  //   await this.convertQueueRepository.save(item);
-  //
-  //   return item;
-  // }
+  async dequeueOrder() {
+    const order = await this.convertOrderRepository.findOne({
+      where: {
+        dequeuedAt: null,
+      },
+      order: {
+        id: 'ASC',
+      },
+      relations: ['items'],
+    });
+
+    if (order) {
+      order.dequeuedAt = new Date();
+      await this.convertOrderRepository.save(order);
+      return order;
+    }
+
+    return null;
+  }
 }

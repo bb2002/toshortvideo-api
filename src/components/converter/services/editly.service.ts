@@ -1,22 +1,44 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { ConverterService } from './converter.service';
-import { ConvertOrderEntity } from '../entities/convertOrder.entity';
 import { v4 as uuidv4 } from 'uuid';
-import { CreateOrderItemDto } from 'src/components/editor/dto/createOrderItem.dto';
-import { plainToInstance } from 'class-transformer';
 import * as path from 'path';
 import * as fs from 'fs';
-import VideoResolution from 'src/common/constants/VideoResolution';
 import { spawn } from 'child_process';
 import VideoSize from '../enums/VideoSize';
 import VideoBlankFill from '../enums/VideoBlankFill';
+import { UploadVideoEntity } from '../../editor/entities/uploadVideo.entity';
+import { EditorService } from '../../editor/services/editor.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { ConvertOrderItemEntity } from '../entities/convertOrderItem.entity';
+import { Repository } from 'typeorm';
+import ProgressStatus from '../enums/ProgressStatus';
+import ConvertErrorMessage from '../enums/ConvertErrorMessage';
+import transformAndValidate from '../../../common/utils/transformAndValidate';
+import { EncodingRecipeDto } from '../dto/encodingRecipe.dto';
+import FontFamily from '../enums/FontFamily';
+import { FontWeight } from '../enums/FontWeight';
+
+interface GenerateEditlySpecFileParams {
+  orderItemEntity: ConvertOrderItemEntity;
+  uploadVideoEntity: UploadVideoEntity;
+}
+
+interface StartEditlyParams {
+  orderItemEntity: ConvertOrderItemEntity;
+  specFilePath: string;
+}
 
 @Injectable()
 export class EditlyService {
   private readonly logger = new Logger(EditlyService.name);
 
-  constructor(private readonly converterService: ConverterService) {}
+  constructor(
+    private readonly converterService: ConverterService,
+    private readonly editorService: EditorService,
+    @InjectRepository(ConvertOrderItemEntity)
+    private readonly convertOrderItemRepository: Repository<ConvertOrderItemEntity>,
+  ) {}
 
   @Interval(2000)
   handleInterval() {
@@ -26,140 +48,154 @@ export class EditlyService {
   }
 
   private async convert() {
-    const item = await this.converterService.dequeue();
-    if (!item) {
-      return null;
+    const order = await this.converterService.dequeueOrder();
+    if (!order) {
+      return;
     }
 
-    await Promise.all(
-      item.orders.map(async (i) => {
-        const order = await this.converterService.getOrderById(i.id);
-        if (order.originalVideo.expiredAt > new Date()) {
-          await this.runEditly(order);
-        } else {
-          // TODO 만료되었으므로 Error 처리
-        }
-      }),
-    );
+    for (const orderItem of order.items) {
+      const { videoUUID } = orderItem;
+      const uploadedVideo = await this.editorService.getUploadVideo(videoUUID);
+      if (uploadedVideo) {
+        orderItem.status = ProgressStatus.IN_PROGRESS;
+        orderItem.rate = 0;
+        await this.convertOrderItemRepository.save(orderItem);
+      } else {
+        orderItem.status = ProgressStatus.ERROR;
+        orderItem.message = ConvertErrorMessage.STARTING_TOOK_TOO_LONG;
+        await this.convertOrderItemRepository.save(orderItem);
+        continue;
+      }
+
+      // 동영상 편집을 위한 스팩 파일 생성
+      const specFilePath = await this.generateEditlySpecFile({
+        orderItemEntity: orderItem,
+        uploadVideoEntity: uploadedVideo,
+      });
+
+      this.startEditly({ orderItemEntity: orderItem, specFilePath }).then();
+    }
   }
 
-  private async runEditly(order: ConvertOrderEntity) {
-    const { originalVideo } = order;
-    const { recipe } = plainToInstance(
-      CreateOrderItemDto,
-      JSON.parse(order.recipe),
+  private async generateEditlySpecFile({
+    orderItemEntity,
+    uploadVideoEntity,
+  }: GenerateEditlySpecFileParams): Promise<string> {
+    const { videoUUID, recipe } = orderItemEntity;
+    const { downloadUrl } = uploadVideoEntity;
+    const specFilePath = path.join('tmp', `${uuidv4()}.json`);
+    const encodingRecipeDto = await transformAndValidate(
+      EncodingRecipeDto,
+      JSON.parse(recipe),
     );
-    const outputFileName = uuidv4();
-    const outputFilePath = path.join('tmp', outputFileName);
-    const videoResolution = VideoResolution[recipe.platform];
+    const editlySpecTop = (() => {
+      switch (encodingRecipeDto.video.videoSize) {
+        case VideoSize.FULL:
+          return 0;
+        case VideoSize.BIG:
+          return 0.255;
+        case VideoSize.MIDDLE:
+          return 0.25;
+      }
+    })();
+    const editlySpecResizeMode = () => {
+      switch (encodingRecipeDto.video.blankFill) {
+        case VideoBlankFill.BLACK:
+          return 'cover';
+        case VideoBlankFill.BLUR:
+        default:
+          return 'contain-blur';
+      }
+    };
+    const editlyFoneFilePath = (font: FontFamily, weight: FontWeight) => {
+      return path.join('fonts', `${font}${weight}.otf`);
+    };
 
-    let top = 0.25;
-    switch (recipe.video.videoSize) {
-      case VideoSize.FULL:
-        top = 0;
-        break;
-      case VideoSize.BIG:
-        top = 0.255;
-        break;
-      case VideoSize.MIDDLE:
-        top = 0.25;
-        break;
-    }
-
-    let resizeMode = 'contain-blur';
-    switch (recipe.video.blankFill) {
-      case VideoBlankFill.BLACK:
-        resizeMode = 'cover';
-        break;
-      case VideoBlankFill.BLUR:
-        resizeMode = 'contain-blur';
-        break;
-    }
-
-    const layers = [
-      {
-        type: 'video',
-        path: originalVideo.downloadUrl,
-        cutFrom: recipe.video.startAt,
-        cutTo: recipe.video.endAt,
-        height: recipe.video.videoSize,
-        top,
-        resizeMode,
-      },
-    ] as any[];
-
-    if (recipe.text1) {
-      layers.push({
-        type: 'title',
-        text: recipe.text1.text,
-        position: {
-          originX: 'center',
-          originY: 'top',
-          x: 0.5,
-          y: 0.06,
-        },
-        textColor: recipe.text1.color,
-        zoomAmount: null,
-      });
-    }
-
-    if (recipe.text2) {
-      layers.push({
-        type: 'title',
-        text: recipe.text2.text,
-        position: {
-          originX: 'center',
-          originY: 'top',
-          x: 0.5,
-          y: 0.12,
-        },
-        textColor: recipe.text2.color,
-        zoomAmount: null,
-      });
-    }
-
-    const spec = {
-      outPath: outputFilePath,
-      width: videoResolution[0],
-      height: videoResolution[1],
+    const editlySpec = {
+      outPath: path.join('tmp', videoUUID),
+      width: 1080,
+      height: 1920,
       allowRemoteRequests: true,
       fps: 30,
       clips: [
         {
-          layers,
+          type: 'video',
+          path: downloadUrl,
+          cutFrom: encodingRecipeDto.video.startAt,
+          cutTo: encodingRecipeDto.video.endAt,
+          height: encodingRecipeDto.video.videoSize,
+          top: editlySpecTop,
+          resizeMode: editlySpecResizeMode,
+        },
+        encodingRecipeDto.text1 ?? {
+          type: 'title',
+          text: encodingRecipeDto.text1.text,
+          position: {
+            originX: 'center',
+            originY: 'top',
+            x: 0.5,
+            y: 0.06,
+          },
+          textColor: encodingRecipeDto.text1.color,
+          fontPath: editlyFoneFilePath(
+            encodingRecipeDto.text1.font,
+            encodingRecipeDto.text1.weight,
+          ),
+          zoomAmount: null,
+        },
+        encodingRecipeDto.text2 ?? {
+          type: 'title',
+          text: encodingRecipeDto.text2.text,
+          position: {
+            originX: 'center',
+            originY: 'top',
+            x: 0.5,
+            y: 0.12,
+          },
+          textColor: encodingRecipeDto.text2.color,
+          fontPath: editlyFoneFilePath(
+            encodingRecipeDto.text2.font,
+            encodingRecipeDto.text2.weight,
+          ),
+          zoomAmount: null,
         },
       ],
     };
 
-    const specFilePath = await new Promise<string>((resolve, reject) => {
-      const jsonFilePath = path.join('tmp', `${outputFileName}-spec.json`);
-      fs.writeFile(jsonFilePath, JSON.stringify(spec), (err) => {
+    return new Promise<string>((resolve, reject) => {
+      fs.writeFile(specFilePath, JSON.stringify(editlySpec), (err) => {
         if (err) {
           reject(err);
         } else {
-          resolve(jsonFilePath);
+          resolve(specFilePath);
         }
       });
     });
+  }
 
-    const editlyProcess = spawn('editly', [
-      specFilePath,
-      '--fast',
-      '--keep-source-audio',
-      '--out',
-      outputFilePath,
-    ]);
+  private async startEditly({
+    orderItemEntity,
+    specFilePath,
+  }: StartEditlyParams) {
+    return new Promise<void>((resolve, reject) => {
+      const editlyProcess = spawn('editly', [
+        specFilePath,
+        '--fast',
+        '--keep-source-audio',
+      ]);
 
-    editlyProcess.on('data', (data) => {
-      console.log('EDITLY DATA: ', data);
-    });
+      editlyProcess.on('data', (data) => {
+        console.log('EDITLY DATA: ', data);
+      });
 
-    editlyProcess.on('error', (err) => {
-      console.error('EDITLY ERR: ', err);
-    });
+      editlyProcess.on('error', (err) => {
+        console.error('EDITLY ERR: ', err);
+      });
 
-    editlyProcess.on('close', (code) => {
-      console.log('EDITLY CLOSE: ', code);
+      editlyProcess.on('close', (code) => {
+        console.log('EDITLY CLOSE: ', code);
+        resolve();
+      });
     });
   }
 }
