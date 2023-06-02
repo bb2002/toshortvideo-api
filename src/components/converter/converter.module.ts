@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ConverterService } from './services/converter.service';
 import { ConvertOrderEntity } from './entities/convertOrder.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -10,7 +10,7 @@ import { EditorModule } from '../editor/editor.module';
   providers: [ConverterService, EditlyService],
   exports: [ConverterService],
   imports: [
-    EditorModule,
+    forwardRef(() => EditorModule),
     TypeOrmModule.forFeature([ConvertOrderEntity, ConvertOrderItemEntity]),
   ],
 })

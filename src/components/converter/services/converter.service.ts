@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateOrderItemDto } from '../../editor/dto/createOrderItem.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConvertOrderEntity } from '../entities/convertOrder.entity';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import ProgressStatus from '../enums/ProgressStatus';
 import { v4 as uuidv4 } from 'uuid';
 import { ConvertOrderItemEntity } from '../entities/convertOrderItem.entity';
@@ -45,7 +45,7 @@ export class ConverterService {
   async dequeueOrder() {
     const order = await this.convertOrderRepository.findOne({
       where: {
-        dequeuedAt: null,
+        //dequeuedAt: IsNull(),
       },
       order: {
         id: 'ASC',

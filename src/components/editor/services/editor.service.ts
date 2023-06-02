@@ -1,12 +1,16 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  forwardRef,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
 import { FfmpegService } from './ffmpeg.service';
 import { v4 as uuidv4 } from 'uuid';
 import { StorageService } from '../../storage/storage.service';
 import R2Folder from '../../storage/enums/R2Folder';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UploadVideoEntity } from '../entities/uploadVideo.entity';
-import { In, MoreThan, Repository } from 'typeorm';
-import { CreateOrderItemDto } from '../dto/createOrderItem.dto';
+import { MoreThan, Repository } from 'typeorm';
 import { ConverterService } from '../../../components/converter/services/converter.service';
 import { CreateOrderDto } from '../dto/createOrder.dto';
 import EnqueueOrderResult from '../types/EnqueueOrderResult';
@@ -16,6 +20,7 @@ export class EditorService {
   constructor(
     private readonly ffmpegService: FfmpegService,
     private readonly storageService: StorageService,
+    @Inject(forwardRef(() => ConverterService))
     private readonly converterService: ConverterService,
     @InjectRepository(UploadVideoEntity)
     private readonly uploadVideoRepository: Repository<UploadVideoEntity>,

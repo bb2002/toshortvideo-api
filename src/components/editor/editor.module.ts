@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { EditorController } from './editor.controller';
 import { EditorService } from './services/editor.service';
 import { FfmpegService } from './services/ffmpeg.service';
@@ -12,7 +12,7 @@ import { ConverterModule } from '../converter/converter.module';
   providers: [EditorService, FfmpegService],
   exports: [EditorService, FfmpegService],
   imports: [
-    ConverterModule,
+    forwardRef(() => ConverterModule),
     StorageModule,
     TypeOrmModule.forFeature([UploadVideoEntity]),
   ],

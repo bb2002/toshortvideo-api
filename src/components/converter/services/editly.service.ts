@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { ConverterService } from './converter.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,6 +18,7 @@ import transformAndValidate from '../../../common/utils/transformAndValidate';
 import { EncodingRecipeDto } from '../dto/encodingRecipe.dto';
 import FontFamily from '../enums/FontFamily';
 import { FontWeight } from '../enums/FontWeight';
+import { isUndefined } from '@nestjs/common/utils/shared.utils';
 
 interface GenerateEditlySpecFileParams {
   orderItemEntity: ConvertOrderItemEntity;
@@ -35,6 +36,7 @@ export class EditlyService {
 
   constructor(
     private readonly converterService: ConverterService,
+    @Inject(forwardRef(() => EditorService))
     private readonly editorService: EditorService,
     @InjectRepository(ConvertOrderItemEntity)
     private readonly convertOrderItemRepository: Repository<ConvertOrderItemEntity>,
@@ -111,6 +113,56 @@ export class EditlyService {
       return path.join('fonts', `${font}${weight}.otf`);
     };
 
+    const layers: any[] = [
+      {
+        type: 'video',
+        path: downloadUrl,
+        cutFrom: encodingRecipeDto.video.startAt,
+        cutTo: encodingRecipeDto.video.endAt,
+        height: encodingRecipeDto.video.videoSize,
+        top: editlySpecTop,
+        resizeMode: editlySpecResizeMode,
+      },
+    ];
+
+    if (encodingRecipeDto.text1) {
+      layers.push({
+        type: 'title',
+        text: encodingRecipeDto.text1.text,
+        position: {
+          originX: 'center',
+          originY: 'top',
+          x: 0.5,
+          y: 0.06,
+        },
+        textColor: encodingRecipeDto.text1.color,
+        fontPath: editlyFoneFilePath(
+          encodingRecipeDto.text1.font,
+          encodingRecipeDto.text1.weight,
+        ),
+        zoomAmount: null,
+      });
+    }
+
+    if (encodingRecipeDto.text2) {
+      layers.push({
+        type: 'title',
+        text: encodingRecipeDto.text2.text,
+        position: {
+          originX: 'center',
+          originY: 'top',
+          x: 0.5,
+          y: 0.12,
+        },
+        textColor: encodingRecipeDto.text2.color,
+        fontPath: editlyFoneFilePath(
+          encodingRecipeDto.text2.font,
+          encodingRecipeDto.text2.weight,
+        ),
+        zoomAmount: null,
+      });
+    }
+
     const editlySpec = {
       outPath: path.join('tmp', videoUUID),
       width: 1080,
@@ -119,45 +171,7 @@ export class EditlyService {
       fps: 30,
       clips: [
         {
-          type: 'video',
-          path: downloadUrl,
-          cutFrom: encodingRecipeDto.video.startAt,
-          cutTo: encodingRecipeDto.video.endAt,
-          height: encodingRecipeDto.video.videoSize,
-          top: editlySpecTop,
-          resizeMode: editlySpecResizeMode,
-        },
-        encodingRecipeDto.text1 ?? {
-          type: 'title',
-          text: encodingRecipeDto.text1.text,
-          position: {
-            originX: 'center',
-            originY: 'top',
-            x: 0.5,
-            y: 0.06,
-          },
-          textColor: encodingRecipeDto.text1.color,
-          fontPath: editlyFoneFilePath(
-            encodingRecipeDto.text1.font,
-            encodingRecipeDto.text1.weight,
-          ),
-          zoomAmount: null,
-        },
-        encodingRecipeDto.text2 ?? {
-          type: 'title',
-          text: encodingRecipeDto.text2.text,
-          position: {
-            originX: 'center',
-            originY: 'top',
-            x: 0.5,
-            y: 0.12,
-          },
-          textColor: encodingRecipeDto.text2.color,
-          fontPath: editlyFoneFilePath(
-            encodingRecipeDto.text2.font,
-            encodingRecipeDto.text2.weight,
-          ),
-          zoomAmount: null,
+          layers,
         },
       ],
     };
