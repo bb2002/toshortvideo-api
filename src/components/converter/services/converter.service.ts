@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateOrderItemDto } from '../../editor/dto/createOrderItem.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConvertOrderEntity } from '../entities/convertOrder.entity';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, LessThan, Repository } from 'typeorm';
 import ProgressStatus from '../enums/ProgressStatus';
 import { v4 as uuidv4 } from 'uuid';
 import { ConvertOrderItemEntity } from '../entities/convertOrderItem.entity';
@@ -45,7 +45,7 @@ export class ConverterService {
   async dequeueOrder() {
     const order = await this.convertOrderRepository.findOne({
       where: {
-        //dequeuedAt: IsNull(),
+        dequeuedAt: IsNull(),
       },
       order: {
         id: 'ASC',
@@ -60,5 +60,28 @@ export class ConverterService {
     }
 
     return null;
+  }
+
+  async getOrder(uuid: string): Promise<ConvertOrderEntity | null> {
+    return this.convertOrderRepository.findOne({
+      where: {
+        uuid,
+      },
+      relations: ['items'],
+    });
+  }
+
+  async getOrderCountBefore(uuid: string) {
+    const order = await this.getOrder(uuid);
+    if (!order) {
+      throw new NotFoundException('OrderID is not valid.');
+    }
+
+    return this.convertOrderRepository.count({
+      where: {
+        id: LessThan(order.id),
+        dequeuedAt: IsNull(),
+      },
+    });
   }
 }

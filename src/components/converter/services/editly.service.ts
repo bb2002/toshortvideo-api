@@ -4,7 +4,7 @@ import { ConverterService } from './converter.service';
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 import * as fs from 'fs';
-import { spawn } from 'child_process';
+import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import VideoSize from '../enums/VideoSize';
 import VideoBlankFill from '../enums/VideoBlankFill';
 import { UploadVideoEntity } from '../../editor/entities/uploadVideo.entity';
@@ -18,7 +18,7 @@ import transformAndValidate from '../../../common/utils/transformAndValidate';
 import { EncodingRecipeDto } from '../dto/encodingRecipe.dto';
 import FontFamily from '../enums/FontFamily';
 import { FontWeight } from '../enums/FontWeight';
-import { isUndefined } from '@nestjs/common/utils/shared.utils';
+import { ExportService } from './export.service';
 
 interface GenerateEditlySpecFileParams {
   orderItemEntity: ConvertOrderItemEntity;
@@ -38,6 +38,7 @@ export class EditlyService {
     private readonly converterService: ConverterService,
     @Inject(forwardRef(() => EditorService))
     private readonly editorService: EditorService,
+    private readonly exportSerivce: ExportService,
     @InjectRepository(ConvertOrderItemEntity)
     private readonly convertOrderItemRepository: Repository<ConvertOrderItemEntity>,
   ) {}
@@ -75,8 +76,36 @@ export class EditlyService {
         uploadVideoEntity: uploadedVideo,
       });
 
-      this.startEditly({ orderItemEntity: orderItem, specFilePath }).then();
+      this.startEditly({ orderItemEntity: orderItem, specFilePath })
+        .then(() => this.onEditlyCompleted(orderItem, uploadedVideo))
+        .catch((ex) => {
+          orderItem.status = ProgressStatus.ERROR;
+          orderItem.message = ex;
+          orderItem.completedAt = new Date();
+          this.convertOrderItemRepository.save(orderItem);
+        });
     }
+  }
+
+  private async onEditlyCompleted(
+    orderItem: ConvertOrderItemEntity,
+    uploadedVideo: UploadVideoEntity,
+  ) {
+    orderItem.status = ProgressStatus.COMPLETED;
+    orderItem.rate = 100;
+    orderItem.completedAt = new Date();
+    await this.convertOrderItemRepository.save(orderItem);
+
+    // 비디오를 다운로드 가능하도록 출력
+    const resultItem = await this.exportSerivce.createExport({
+      orderItemEntity: orderItem,
+      uploadVideoEntity: uploadedVideo,
+    });
+
+    await this.exportSerivce.startExport({
+      resultItem,
+      videoFileName: `${uploadedVideo.uuid}.mp4`,
+    });
   }
 
   private async generateEditlySpecFile({
@@ -164,7 +193,7 @@ export class EditlyService {
     }
 
     const editlySpec = {
-      outPath: path.join('tmp', videoUUID),
+      outPath: path.join('tmp', `${videoUUID}.mp4`),
       width: 1080,
       height: 1920,
       allowRemoteRequests: true,
@@ -191,25 +220,51 @@ export class EditlyService {
     orderItemEntity,
     specFilePath,
   }: StartEditlyParams) {
+    const saveOrderItemEntity = (e: ConvertOrderItemEntity) => {
+      this.convertOrderItemRepository.save(e);
+    };
+
     return new Promise<void>((resolve, reject) => {
-      const editlyProcess = spawn('editly', [
-        specFilePath,
-        '--fast',
-        '--keep-source-audio',
-      ]);
+      const timeoutHandler = setTimeout(() => {
+        reject(ConvertErrorMessage.ENCODING_TOOK_TOO_LONG);
+      }, 60 * 10 * 1000);
 
-      editlyProcess.on('data', (data) => {
-        console.log('EDITLY DATA: ', data);
-      });
+      let editlyProcess: ChildProcessWithoutNullStreams;
+      try {
+        editlyProcess = spawn('editly', [
+          specFilePath,
+          '--fast',
+          '--keep-source-audio',
+        ]);
 
-      editlyProcess.on('error', (err) => {
-        console.error('EDITLY ERR: ', err);
-      });
+        editlyProcess.stdout.on('data', (buf) => {
+          const data = buf.toString() as string;
+          console.log('stdout:', data);
 
-      editlyProcess.on('close', (code) => {
-        console.log('EDITLY CLOSE: ', code);
-        resolve();
-      });
+          if (data.indexOf('Done.') !== -1) {
+            // 인코딩이 성공적으로 완료된 경우
+            clearTimeout(timeoutHandler);
+            resolve();
+          }
+
+          if (data.indexOf('%') !== -1) {
+            // 인코딩이 진행중인 경우
+            const rate = parseInt(data);
+            orderItemEntity.rate = rate;
+            saveOrderItemEntity(orderItemEntity);
+          }
+        });
+
+        editlyProcess.stderr.on('data', (err) => {
+          // 인코딩 중 오류가 발생한 경우
+          clearTimeout(timeoutHandler);
+          this.logger.error(err.toString());
+          reject(ConvertErrorMessage.INTERNAL_SERVER_ERROR);
+        });
+      } catch (err) {
+        this.logger.error(err);
+        reject(ConvertErrorMessage.INTERNAL_SERVER_ERROR);
+      }
     });
   }
 }
