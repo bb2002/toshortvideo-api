@@ -10,6 +10,7 @@ import ExportVideoStatus from '../enums/ExportVideoStatus';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import R2Folder from 'src/components/storage/enums/R2Folder';
+import { renameTmpFile } from 'src/common/utils/renameFile';
 
 interface CreateExportParams {
   uploadVideoEntity: UploadVideoEntity;
@@ -43,24 +44,23 @@ export class ExportService {
   }
 
   async startExport({ resultItem, videoFileName }: StartExportParams) {
-    const videoFilePath = path.join('tmp', videoFileName);
-    const processedVideoKey = uuidv4();
-    const processedVideoFilePath = path.join(
-      processedVideoKey,
-      `ToShortVideo_${resultItem.originalVideo.originalVideoName}`,
+    const { uuid, originalVideoName } = resultItem.originalVideo;
+    const newVideoFilePath = path.join(
+      uuid,
+      'ToShortVideo_' +
+        path.parse(path.basename(originalVideoName)).name +
+        '.mp4',
     );
 
-    // 파일이 존재하는지 확인
-    if (!(await isFileExists(videoFilePath))) {
-      throw new InternalServerErrorException('Converted video not found.');
-    }
+    // 임시파일의 이름을 업로드할 파일 명으로 변경
+    await renameTmpFile(videoFileName, newVideoFilePath);
 
     // 업로드 시작
     resultItem.status = ExportVideoStatus.UPLOADING;
     await this.convertResultItemRepository.save(resultItem);
     const { key } = await this.storageService.putFileTo(
       R2Folder.VIDEO_PROCESSED,
-      processedVideoFilePath,
+      newVideoFilePath,
     );
 
     // 다운로드 URL 생성 후 업로드 완료
@@ -71,6 +71,6 @@ export class ExportService {
     await this.convertResultItemRepository.save(resultItem);
 
     // 임시파일 삭제
-    this.storageService.deleteTmpFile(videoFileName);
+    this.storageService.deleteTmpFile(newVideoFilePath);
   }
 }

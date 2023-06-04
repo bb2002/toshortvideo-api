@@ -34,9 +34,13 @@ export class StorageService {
     });
   }
 
-  async putFileTo(folder: R2Folder, filename: string): Promise<PutFileResult> {
+  async putFileTo(
+    folder: R2Folder,
+    filename: string,
+    subFolderPath = '',
+  ): Promise<PutFileResult> {
     const tmpFile = await this.validateTmpFile(filename);
-    const key = path.join(folder, filename);
+    const key = path.join(folder, subFolderPath, filename);
 
     await this.s3
       .putObject({

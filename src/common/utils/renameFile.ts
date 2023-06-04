@@ -6,11 +6,17 @@ export async function renameTmpFile(oldName: string, newName: string) {
     const oldPath = path.join('tmp', oldName);
     const newPath = path.join('tmp', newName);
 
-    fs.rename(oldPath, newPath, (err) => {
-      if (err) {
-        reject(err);
+    fs.mkdir(path.dirname(newPath), { recursive: true }, (err1) => {
+      if (err1) {
+        reject(err1);
       } else {
-        resolve();
+        fs.rename(oldPath, newPath, (err2) => {
+          if (err2) {
+            reject(err2);
+          } else {
+            resolve();
+          }
+        });
       }
     });
   });

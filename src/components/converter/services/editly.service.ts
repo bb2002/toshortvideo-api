@@ -19,6 +19,8 @@ import { EncodingRecipeDto } from '../dto/encodingRecipe.dto';
 import FontFamily from '../enums/FontFamily';
 import { FontWeight } from '../enums/FontWeight';
 import { ExportService } from './export.service';
+import { ConvertResultItemEntity } from '../entities/convertResultItem.entity';
+import { StorageService } from 'src/components/storage/storage.service';
 
 interface GenerateEditlySpecFileParams {
   orderItemEntity: ConvertOrderItemEntity;
@@ -39,6 +41,7 @@ export class EditlyService {
     @Inject(forwardRef(() => EditorService))
     private readonly editorService: EditorService,
     private readonly exportSerivce: ExportService,
+    private readonly storageService: StorageService,
     @InjectRepository(ConvertOrderItemEntity)
     private readonly convertOrderItemRepository: Repository<ConvertOrderItemEntity>,
   ) {}
@@ -77,35 +80,38 @@ export class EditlyService {
       });
 
       this.startEditly({ orderItemEntity: orderItem, specFilePath })
-        .then(() => this.onEditlyCompleted(orderItem, uploadedVideo))
+        .then()
         .catch((ex) => {
           orderItem.status = ProgressStatus.ERROR;
           orderItem.message = ex;
           orderItem.completedAt = new Date();
           this.convertOrderItemRepository.save(orderItem);
+        })
+        .then(() => {
+          return this.storageService.deleteTmpFile(path.basename(specFilePath));
+        })
+        .then(() => {
+          orderItem.status = ProgressStatus.COMPLETED;
+          orderItem.rate = 100;
+          orderItem.completedAt = new Date();
+          return this.convertOrderItemRepository.save(orderItem);
+        })
+        .then(() => {
+          return this.exportSerivce.createExport({
+            orderItemEntity: orderItem,
+            uploadVideoEntity: uploadedVideo,
+          });
+        })
+        .then((convertResultItem: ConvertResultItemEntity) => {
+          return this.exportSerivce.startExport({
+            resultItem: convertResultItem,
+            videoFileName: `${orderItem.videoUUID}.mp4`,
+          });
+        })
+        .catch((ex) => {
+          this.logger.error(ex);
         });
     }
-  }
-
-  private async onEditlyCompleted(
-    orderItem: ConvertOrderItemEntity,
-    uploadedVideo: UploadVideoEntity,
-  ) {
-    orderItem.status = ProgressStatus.COMPLETED;
-    orderItem.rate = 100;
-    orderItem.completedAt = new Date();
-    await this.convertOrderItemRepository.save(orderItem);
-
-    // 비디오를 다운로드 가능하도록 출력
-    const resultItem = await this.exportSerivce.createExport({
-      orderItemEntity: orderItem,
-      uploadVideoEntity: uploadedVideo,
-    });
-
-    await this.exportSerivce.startExport({
-      resultItem,
-      videoFileName: `${uploadedVideo.uuid}.mp4`,
-    });
   }
 
   private async generateEditlySpecFile({
@@ -150,7 +156,7 @@ export class EditlyService {
         cutTo: encodingRecipeDto.video.endAt,
         height: encodingRecipeDto.video.videoSize,
         top: editlySpecTop,
-        resizeMode: editlySpecResizeMode,
+        resizeMode: editlySpecResizeMode(),
       },
     ];
 
@@ -247,7 +253,7 @@ export class EditlyService {
             resolve();
           }
 
-          if (data.indexOf('%') !== -1) {
+          if (data.indexOf('%') !== -1 && !isNaN(parseInt(data))) {
             // 인코딩이 진행중인 경우
             const rate = parseInt(data);
             orderItemEntity.rate = rate;
