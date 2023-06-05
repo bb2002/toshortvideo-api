@@ -1,20 +1,18 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { StorageService } from 'src/components/storage/storage.service';
 import { ConvertResultItemEntity } from '../entities/convertResultItem.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UploadVideoEntity } from 'src/components/editor/entities/uploadVideo.entity';
-import { ConvertOrderItemEntity } from '../entities/convertOrderItem.entity';
-import { isFileExists } from 'src/common/utils/isFileExists';
 import ExportVideoStatus from '../enums/ExportVideoStatus';
 import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 import R2Folder from 'src/components/storage/enums/R2Folder';
 import { renameTmpFile } from 'src/common/utils/renameFile';
+import { ConvertOrderEntity } from '../entities/convertOrder.entity';
 
 interface CreateExportParams {
   uploadVideoEntity: UploadVideoEntity;
-  orderItemEntity: ConvertOrderItemEntity;
+  orderEntity: ConvertOrderEntity;
 }
 
 interface StartExportParams {
@@ -30,14 +28,11 @@ export class ExportService {
     private readonly convertResultItemRepository: Repository<ConvertResultItemEntity>,
   ) {}
 
-  async createExport({
-    orderItemEntity,
-    uploadVideoEntity,
-  }: CreateExportParams) {
+  async createExport({ orderEntity, uploadVideoEntity }: CreateExportParams) {
     return this.convertResultItemRepository.save({
       downloadUrl: null,
       expiredAt: null,
-      order: orderItemEntity,
+      order: orderEntity,
       originalVideo: uploadVideoEntity,
       status: ExportVideoStatus.WAITING,
     });

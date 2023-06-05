@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   Entity,
   JoinColumn,
+  ManyToOne,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -29,12 +30,16 @@ export class ConvertResultItemEntity {
   })
   status: ExportVideoStatus;
 
-  @OneToOne(() => UploadVideoEntity)
-  @JoinColumn()
+  @ManyToOne(
+    () => UploadVideoEntity,
+    (originalVideo) => originalVideo.convertResultItem,
+  )
   originalVideo: UploadVideoEntity;
 
-  @OneToOne(() => ConvertOrderEntity)
-  @JoinColumn()
+  @ManyToOne(
+    () => ConvertOrderEntity,
+    (orderEntity) => orderEntity.convertResultItem,
+  )
   order: ConvertOrderEntity;
 
   @Column({

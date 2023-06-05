@@ -27,6 +27,11 @@ interface GenerateEditlySpecFileParams {
   uploadVideoEntity: UploadVideoEntity;
 }
 
+interface generateEditlySpecFileResult {
+  specFilePath: string;
+  tmpFilePath: string;
+}
+
 interface StartEditlyParams {
   orderItemEntity: ConvertOrderItemEntity;
   specFilePath: string;
@@ -74,7 +79,7 @@ export class EditlyService {
       }
 
       // 동영상 편집을 위한 스팩 파일 생성
-      const specFilePath = await this.generateEditlySpecFile({
+      const { specFilePath, tmpFilePath } = await this.generateEditlySpecFile({
         orderItemEntity: orderItem,
         uploadVideoEntity: uploadedVideo,
       });
@@ -88,9 +93,6 @@ export class EditlyService {
           this.convertOrderItemRepository.save(orderItem);
         })
         .then(() => {
-          return this.storageService.deleteTmpFile(path.basename(specFilePath));
-        })
-        .then(() => {
           orderItem.status = ProgressStatus.COMPLETED;
           orderItem.rate = 100;
           orderItem.completedAt = new Date();
@@ -98,7 +100,7 @@ export class EditlyService {
         })
         .then(() => {
           return this.exportSerivce.createExport({
-            orderItemEntity: orderItem,
+            orderEntity: order,
             uploadVideoEntity: uploadedVideo,
           });
         })
@@ -110,14 +112,21 @@ export class EditlyService {
         })
         .catch((ex) => {
           this.logger.error(ex);
-        });
+        })
+        .finally(() => {
+          return Promise.allSettled([
+            this.storageService.deleteTmpFile(path.basename(specFilePath)),
+            this.storageService.deleteTmpFile(path.basename(tmpFilePath)),
+          ]);
+        })
+        .catch();
     }
   }
 
   private async generateEditlySpecFile({
     orderItemEntity,
     uploadVideoEntity,
-  }: GenerateEditlySpecFileParams): Promise<string> {
+  }: GenerateEditlySpecFileParams): Promise<generateEditlySpecFileResult> {
     const { videoUUID, recipe } = orderItemEntity;
     const { downloadUrl } = uploadVideoEntity;
     const specFilePath = path.join('tmp', `${uuidv4()}.json`);
@@ -130,71 +139,102 @@ export class EditlyService {
         case VideoSize.FULL:
           return 0;
         case VideoSize.BIG:
-          return 0.255;
+          return 0.2;
         case VideoSize.MIDDLE:
           return 0.25;
       }
     })();
-    const editlySpecResizeMode = () => {
-      switch (encodingRecipeDto.video.blankFill) {
-        case VideoBlankFill.BLACK:
-          return 'cover';
-        case VideoBlankFill.BLUR:
-        default:
-          return 'contain-blur';
-      }
-    };
     const editlyFoneFilePath = (font: FontFamily, weight: FontWeight) => {
       return path.join('fonts', `${font}${weight}.otf`);
     };
 
-    const layers: any[] = [
-      {
+    const tmpFilePath = await this.storageService.downloadFileToTmp(
+      downloadUrl,
+    );
+
+    const layers: any[] = [];
+    if (encodingRecipeDto.video.videoSize === VideoSize.FULL) {
+      // FULL 상태에서는 블러를 배경에 깔 필요가 없음.
+      layers.push({
         type: 'video',
-        path: downloadUrl,
+        path: tmpFilePath,
         cutFrom: encodingRecipeDto.video.startAt,
         cutTo: encodingRecipeDto.video.endAt,
         height: encodingRecipeDto.video.videoSize,
-        top: editlySpecTop,
-        resizeMode: editlySpecResizeMode(),
-      },
-    ];
+        top: 0,
+        resizeMode: 'cover',
+      });
+    } else {
+      switch (encodingRecipeDto.video.blankFill) {
+        case VideoBlankFill.BLACK:
+          layers.push({
+            type: 'video',
+            path: tmpFilePath,
+            cutFrom: encodingRecipeDto.video.startAt,
+            cutTo: encodingRecipeDto.video.endAt,
+            height: encodingRecipeDto.video.videoSize,
+            top: editlySpecTop,
+            resizeMode: 'cover',
+          });
+          break;
+        case VideoBlankFill.BLUR:
+          layers.push({
+            type: 'video',
+            path: tmpFilePath,
+            cutFrom: encodingRecipeDto.video.startAt,
+            cutTo: encodingRecipeDto.video.endAt,
+            height: 1.0,
+            top: 0,
+            resizeMode: 'contain-blur',
+          });
+          layers.push({
+            type: 'video',
+            path: downloadUrl,
+            cutFrom: encodingRecipeDto.video.startAt,
+            cutTo: encodingRecipeDto.video.endAt,
+            height: encodingRecipeDto.video.videoSize,
+            top: editlySpecTop,
+            resizeMode: 'cover',
+          });
+          break;
+      }
+    }
 
     if (encodingRecipeDto.text1) {
+      const { text, color, font, fontSize, weight } = encodingRecipeDto.text1;
       layers.push({
         type: 'title',
-        text: encodingRecipeDto.text1.text,
+        text,
         position: {
           originX: 'center',
           originY: 'top',
           x: 0.5,
-          y: 0.06,
+          y: 0.08,
         },
-        textColor: encodingRecipeDto.text1.color,
-        fontPath: editlyFoneFilePath(
-          encodingRecipeDto.text1.font,
-          encodingRecipeDto.text1.weight,
-        ),
+        textColor: color,
+        fontPath: editlyFoneFilePath(font, weight),
         zoomAmount: null,
+        containerWidth: 10,
+        fontSize,
       });
     }
 
     if (encodingRecipeDto.text2) {
+      const { text, color, font, fontSize, weight } = encodingRecipeDto.text2;
       layers.push({
         type: 'title',
-        text: encodingRecipeDto.text2.text,
+        text: text,
         position: {
           originX: 'center',
           originY: 'top',
           x: 0.5,
-          y: 0.12,
+          y: 0.08 + (encodingRecipeDto.text1?.fontSize ?? 0.05),
         },
-        textColor: encodingRecipeDto.text2.color,
-        fontPath: editlyFoneFilePath(
-          encodingRecipeDto.text2.font,
-          encodingRecipeDto.text2.weight,
-        ),
+        textColor: color,
+        fontPath: editlyFoneFilePath(font, weight),
         zoomAmount: null,
+        containerWidth: 10,
+        fontSize,
       });
     }
 
@@ -211,12 +251,15 @@ export class EditlyService {
       ],
     };
 
-    return new Promise<string>((resolve, reject) => {
+    return new Promise<generateEditlySpecFileResult>((resolve, reject) => {
       fs.writeFile(specFilePath, JSON.stringify(editlySpec), (err) => {
         if (err) {
           reject(err);
         } else {
-          resolve(specFilePath);
+          resolve({
+            specFilePath,
+            tmpFilePath,
+          });
         }
       });
     });
@@ -245,7 +288,6 @@ export class EditlyService {
 
         editlyProcess.stdout.on('data', (buf) => {
           const data = buf.toString() as string;
-          console.log('stdout:', data);
 
           if (data.indexOf('Done.') !== -1) {
             // 인코딩이 성공적으로 완료된 경우

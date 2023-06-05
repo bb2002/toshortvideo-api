@@ -12,6 +12,8 @@ import { isFileExists } from '../../common/utils/isFileExists';
 import R2Folder from './enums/R2Folder';
 import PutFileResult from './types/PutFileResult';
 import GetFileResult from './types/GetFileResult';
+import * as https from 'https';
+import { v4 as uuidv4 } from 'uuid';
 
 const BUCKET_NAME = 'toshortvideo';
 const DOWNLOAD_URL_EXPIRES = 60 * 60 * 24;
@@ -87,6 +89,32 @@ export class StorageService {
       url: signedUrl,
       expiredAt: addSeconds(new Date(), DOWNLOAD_URL_EXPIRES),
     };
+  }
+
+  async downloadFileToTmp(
+    downloadUrl: string,
+    downloadFileName = uuidv4(),
+  ): Promise<string> {
+    const downloadPath = path.join('tmp', downloadFileName);
+    const file = fs.createWriteStream(downloadPath);
+
+    return new Promise<string>((resolve, reject) => {
+      https
+        .get(downloadUrl, (res) => {
+          res.pipe(file);
+
+          file.on('finish', () => {
+            file.close(() => {
+              resolve(downloadPath);
+            });
+          });
+        })
+        .on('error', () => {
+          fs.unlink(downloadPath, () => {
+            reject();
+          });
+        });
+    });
   }
 
   deleteTmpFile(filename: string) {

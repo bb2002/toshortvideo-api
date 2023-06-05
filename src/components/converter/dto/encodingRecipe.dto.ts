@@ -4,7 +4,9 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -15,7 +17,7 @@ import VideoSize from '../enums/VideoSize';
 
 export class TextRecipeDto {
   @IsString()
-  @MaxLength(12)
+  @MaxLength(25)
   text: string;
 
   @IsHexColor()
@@ -26,6 +28,11 @@ export class TextRecipeDto {
 
   @IsEnum(FontWeight)
   weight: FontWeight;
+
+  @IsNumber()
+  @Min(0.05)
+  @Max(0.15)
+  fontSize: number;
 }
 
 export class VideoRecipeDto {

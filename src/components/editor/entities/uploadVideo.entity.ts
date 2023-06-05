@@ -1,8 +1,10 @@
+import { ConvertResultItemEntity } from 'src/components/converter/entities/convertResultItem.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
   Index,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -55,6 +57,12 @@ export class UploadVideoEntity {
     type: 'text',
   })
   thumbnailUrl: string;
+
+  @OneToMany(
+    () => ConvertResultItemEntity,
+    (resultItem) => resultItem.originalVideo,
+  )
+  convertResultItem: ConvertResultItemEntity[];
 
   @Column({
     name: 'expired_at',
