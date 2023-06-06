@@ -118,11 +118,18 @@ export class StorageService {
   }
 
   deleteTmpFile(filename: string) {
-    fs.unlink(path.join('tmp', filename), (err) => {
+    const filePath = path.join('tmp', filename);
+    const chunks = filePath.split('/');
+
+    fs.unlink(filePath, (err) => {
       if (err) {
         this.logger.error(err);
       }
     });
+
+    // 디렉터리 삭제도 필요한 경우
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    fs.rmdir(path.join(chunks[0], chunks[1]), () => {});
   }
 
   private async validateTmpFile(filename: string) {

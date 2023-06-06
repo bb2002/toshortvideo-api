@@ -16,7 +16,7 @@ interface OrderItemResult {
   originalName: string;
   status: ProgressStatus;
   rate: number;
-  export: ExportingResult;
+  export?: ExportingResult;
 }
 
 interface GetExportResult {

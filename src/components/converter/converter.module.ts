@@ -8,6 +8,7 @@ import { EditorModule } from '../editor/editor.module';
 import { ExportService } from './services/export.service';
 import { StorageModule } from '../storage/storage.module';
 import { ConvertResultItemEntity } from './entities/convertResultItem.entity';
+import { ExportController } from './controllers/export.controller';
 
 @Module({
   providers: [ConverterService, EditlyService, ExportService],
@@ -21,5 +22,6 @@ import { ConvertResultItemEntity } from './entities/convertResultItem.entity';
       ConvertResultItemEntity,
     ]),
   ],
+  controllers: [ExportController],
 })
 export class ConverterModule {}

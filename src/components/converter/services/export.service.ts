@@ -68,4 +68,14 @@ export class ExportService {
     // 임시파일 삭제
     this.storageService.deleteTmpFile(newVideoFilePath);
   }
+
+  async getResultItem(uploadedVideoEntity: UploadVideoEntity) {
+    return this.convertResultItemRepository.findOne({
+      where: {
+        originalVideo: {
+          id: uploadedVideoEntity.id,
+        },
+      },
+    });
+  }
 }

@@ -67,7 +67,7 @@ export class ConverterService {
       where: {
         uuid,
       },
-      relations: ['items'],
+      relations: ['items', 'convertResultItem'],
     });
   }
 
