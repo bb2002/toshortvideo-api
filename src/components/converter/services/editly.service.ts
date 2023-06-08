@@ -280,11 +280,7 @@ export class EditlyService {
 
       let editlyProcess: ChildProcessWithoutNullStreams;
       try {
-        editlyProcess = spawn('editly', [
-          specFilePath,
-          '--fast',
-          '--keep-source-audio',
-        ]);
+        editlyProcess = spawn('editly', [specFilePath, '--keep-source-audio']);
 
         editlyProcess.stdout.on('data', (buf) => {
           const data = buf.toString() as string;
