@@ -11,7 +11,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import FontFamily from '../enums/FontFamily';
-import { FontWeight } from '../enums/FontWeight';
 import VideoBlankFill from '../enums/VideoBlankFill';
 import VideoSize from '../enums/VideoSize';
 
@@ -25,9 +24,6 @@ export class TextRecipeDto {
 
   @IsEnum(FontFamily)
   font: FontFamily;
-
-  @IsEnum(FontWeight)
-  weight: FontWeight;
 
   @IsNumber()
   @Min(0.05)

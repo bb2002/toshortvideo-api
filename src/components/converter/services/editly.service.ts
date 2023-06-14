@@ -144,8 +144,8 @@ export class EditlyService {
           return 0.25;
       }
     })();
-    const editlyFoneFilePath = (font: FontFamily, weight: FontWeight) => {
-      return path.join('fonts', `${font}${weight}.otf`);
+    const editlyFoneFilePath = (font: FontFamily) => {
+      return path.join('fonts', `${font}.otf`);
     };
 
     const tmpFilePath = await this.storageService.downloadFileToTmp(
@@ -201,7 +201,7 @@ export class EditlyService {
     }
 
     if (encodingRecipeDto.text1) {
-      const { text, color, font, fontSize, weight } = encodingRecipeDto.text1;
+      const { text, color, font, fontSize } = encodingRecipeDto.text1;
       layers.push({
         type: 'title',
         text,
@@ -212,7 +212,7 @@ export class EditlyService {
           y: 0.08,
         },
         textColor: color,
-        fontPath: editlyFoneFilePath(font, weight),
+        fontPath: editlyFoneFilePath(font),
         zoomAmount: null,
         containerWidth: 10,
         fontSize,
@@ -220,7 +220,7 @@ export class EditlyService {
     }
 
     if (encodingRecipeDto.text2) {
-      const { text, color, font, fontSize, weight } = encodingRecipeDto.text2;
+      const { text, color, font, fontSize } = encodingRecipeDto.text2;
       layers.push({
         type: 'title',
         text: text,
@@ -231,7 +231,7 @@ export class EditlyService {
           y: 0.08 + (encodingRecipeDto.text1?.fontSize ?? 0.05),
         },
         textColor: color,
-        fontPath: editlyFoneFilePath(font, weight),
+        fontPath: editlyFoneFilePath(font),
         zoomAmount: null,
         containerWidth: 10,
         fontSize,
