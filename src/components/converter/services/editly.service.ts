@@ -17,7 +17,6 @@ import ConvertErrorMessage from '../enums/ConvertErrorMessage';
 import transformAndValidate from '../../../common/utils/transformAndValidate';
 import { EncodingRecipeDto } from '../dto/encodingRecipe.dto';
 import FontFamily from '../enums/FontFamily';
-import { FontWeight } from '../enums/FontWeight';
 import { ExportService } from './export.service';
 import { ConvertResultItemEntity } from '../entities/convertResultItem.entity';
 import { StorageService } from 'src/components/storage/storage.service';
